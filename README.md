@@ -52,11 +52,15 @@ claude mcp add unreal -- uvx uemcp
 }
 ```
 
-**From a clone of this repo**
+**pip, or from a clone of this repo**
 
 ```sh
-uv run uemcp
+pip install uemcp && uemcp
+# or
+git clone https://github.com/ATDev-Inc/uemcp && cd uemcp && uv run uemcp
 ```
+
+More detail, including pinning to one project when several editors are open: [docs/setup.md](docs/setup.md).
 
 ### 3. Talk to your editor
 
@@ -151,7 +155,13 @@ The test suite runs entirely without Unreal: protocol tests talk to a fake edito
 - True PIE (play-in-editor) control with input injection
 - Asset thumbnails as MCP resources
 
-PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+## Community
+
+- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md) has a contribution ladder from docs fixes up to new tools. If you keep reaching for the same `ue_python` snippet, that is a tool waiting to be born, and a working snippet pasted into an issue is 80% of the work.
+- **Bugs**: use the [issue templates](https://github.com/ATDev-Inc/uemcp/issues/new/choose). The in-editor traceback from the tool error is the most useful thing you can include.
+- **Security**: see [SECURITY.md](SECURITY.md). Report vulnerabilities privately, not in public issues.
+- **Releases**: [CHANGELOG.md](CHANGELOG.md) and [GitHub releases](https://github.com/ATDev-Inc/uemcp/releases).
+- **Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 

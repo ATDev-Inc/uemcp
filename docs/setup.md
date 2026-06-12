@@ -16,7 +16,7 @@ One-time, per project:
 
 Defaults you do not need to touch (but can): multicast group `239.0.0.1:6766`, multicast bind address `0.0.0.0`. These appear in the same Project Settings section.
 
-To verify: after restarting, the editor silently joins the multicast group. Run `uvx uemcp` is not needed for this check; instead, ask Claude for `ue_status` once the client is configured, or run:
+To verify: the editor gives no visible sign that remote execution is on; it just silently joins the multicast group. The easiest check is to ask Claude for `ue_status` once the client is configured. To probe directly from a clone of this repo:
 
 ```sh
 uv run python -c "from uemcp.remote_exec import RemoteExecutionClient; print(RemoteExecutionClient().discover())"
@@ -49,7 +49,12 @@ Add to `claude_desktop_config.json` (Settings > Developer > Edit Config):
 
 ### Any other MCP client
 
-UEMCP is a standard stdio MCP server. Point your client at the `uemcp` command.
+UEMCP is a standard stdio MCP server. Point your client at the `uemcp` command. If you prefer pip over uv:
+
+```sh
+pip install uemcp
+uemcp
+```
 
 ### From a clone
 
