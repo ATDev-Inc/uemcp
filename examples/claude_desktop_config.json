@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "unreal": {
+      "command": "uvx",
+      "args": ["uemcp"],
+      "env": {
+        "UEMCP_PROJECT": "MyGame"
+      }
+    }
+  }
+}
