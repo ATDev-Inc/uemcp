@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and connection help
+    url: https://github.com/ATDev-Inc/uemcp/blob/main/docs/troubleshooting.md
+    about: Most "it will not connect" problems are answered here.

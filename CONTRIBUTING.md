@@ -1,31 +1,70 @@
 # Contributing to UEMCP
 
-Thanks for helping out. The bar for a good PR here is simple: it should work against a vanilla Unreal 5.x editor with only the built-in Python plugin enabled.
+Thanks for helping out. The bar for a good contribution is simple: it should work against a vanilla Unreal 5.x editor with only the built-in Python plugin enabled, because "nothing to install inside Unreal" is the whole point of this project.
 
-## Setup
+## Getting set up
 
 ```sh
+git clone https://github.com/ATDev-Inc/uemcp
+cd uemcp
 uv sync
-uv run pytest
+uv run pytest        # 87 tests, no Unreal needed
 uv run ruff check .
 ```
 
-Tests run without Unreal. If your change touches in-editor behavior, please also smoke-test it against a real editor and say which engine version you used in the PR description.
+To run against a real editor, open any UE5 project with the Python Editor Script Plugin enabled and remote execution on (see [docs/setup.md](docs/setup.md)), then:
+
+```sh
+uv run python -c "from uemcp.remote_exec import RemoteExecutionClient; print(RemoteExecutionClient().discover())"
+```
+
+Read [docs/architecture.md](docs/architecture.md) before touching code. It is short and explains the three layers (protocol client, harness/bridge, snippets) and walks through adding a tool end to end.
+
+## Ways to contribute, easiest first
+
+1. **Docs fixes.** Anything in `docs/` or the README that confused you probably confuses others.
+2. **Cookbook recipes.** A prompt that produced a great result belongs in [docs/cookbook.md](docs/cookbook.md).
+3. **Engine version reports.** Tested UEMCP against an engine version not listed in recent PRs? An issue saying "all good on 5.x.y" (or what broke) is genuinely useful.
+4. **New tools.** If you keep reaching for the same `ue_python` snippet, that is a tool waiting to be born. A working snippet pasted into a feature request is 80% of the work.
+5. **Roadmap items.** Sequencer, Niagara, landscape, true PIE control, asset thumbnails as resources. Comment on the tracking issue before starting anything large.
 
 ## Adding a tool
 
-1. Add a builder to `src/uemcp/snippets.py`. Builders are pure functions that return a flush-left Python snippet body. The body runs inside a harness function in the editor, so use `return` to hand back JSON-serializable data and raise exceptions for failures.
-2. Register the tool in `src/uemcp/server.py` with a clear docstring (it becomes the tool description Claude reads).
-3. Add a compile case for the builder in `tests/test_snippets.py`.
+The full walkthrough with code is in [docs/architecture.md](docs/architecture.md#adding-a-tool-end-to-end). The short version:
 
-Guidelines:
+1. Add a pure builder function to `src/uemcp/snippets.py` that returns the in-editor Python body.
+2. Register the tool in `src/uemcp/server.py`. The docstring is what Claude reads; write it for the model.
+3. Add a compile case to `tests/test_snippets.py`.
+4. Document it in `docs/tools.md`.
+5. Smoke-test against a real editor and name the engine version in your PR.
 
-- Prefix in-snippet variables with `_` to avoid colliding with user state in the editor's Python session.
-- Interpolate values with `repr()` (`{value!r}`), never with raw string formatting.
-- Raise `RuntimeError` with actionable messages ("No actor found with label X") rather than letting `None` flow into a confusing attribute error.
-- Keep tools editor-version tolerant: wrap newer-API calls in try/except with a fallback where reasonable.
+Snippet rules (enforced in review):
 
-## Style
+- Interpolate values with `repr()` (`{value!r}`), never raw f-string interpolation. This is also a security boundary: it is what prevents tool arguments from escaping into the editor's Python session as code.
+- Prefix in-snippet variables with `_` so they cannot trample user state in the editor's shared Python session.
+- Raise `RuntimeError` with actionable messages ("No actor found with label X") instead of letting `None` flow into a confusing AttributeError.
+- Be version-tolerant: wrap newer engine APIs in try/except with a fallback where reasonable.
 
-- `ruff check .` must pass.
-- No em dashes in docs or comments.
+## Pull requests
+
+- Keep PRs focused; one tool or one fix per PR reviews fastest.
+- `uv run pytest` and `uv run ruff check .` must pass (CI runs both on Ubuntu and Windows).
+- Fill in the PR template, including the smoke-test note.
+- No em dashes in docs or comments (house style).
+
+## Reporting bugs
+
+Use the issue template. The single most useful thing you can include is the tool error text: UEMCP errors carry the Python traceback from inside the editor, which usually names the exact failing `unreal` call.
+
+For security reports, see [SECURITY.md](SECURITY.md). Please do not open public issues for vulnerabilities.
+
+## Release process (maintainers)
+
+1. Update the version in `pyproject.toml` and `src/uemcp/__init__.py`.
+2. Move the `[Unreleased]` notes in `CHANGELOG.md` under the new version with today's date.
+3. Commit, tag `vX.Y.Z`, push the tag.
+4. Create a GitHub release from the tag. The `Release` workflow builds and publishes to PyPI via trusted publishing.
+
+## Code of conduct
+
+Be kind. The long version: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

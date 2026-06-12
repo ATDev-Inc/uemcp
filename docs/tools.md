@@ -1,0 +1,259 @@
+# Tool reference
+
+Every UEMCP tool, with parameters, return shapes, and examples.
+
+**Shared conventions**
+
+- Content paths: `/Game/Folder/AssetName` (no extension, no `.AssetName` suffix needed).
+- Engine classes: `/Script/ModuleName.ClassName`, for example `/Script/Engine.PointLight`.
+- Locations are `[x, y, z]` in centimeters. Rotations are `[roll, pitch, yaw]` in degrees. Colors are `[r, g, b]` (and sometimes `[r, g, b, a]`) in the 0..1 range.
+- Actors are addressed by their **outliner label** (the name you see in the World Outliner), which is not always the same as the internal object name.
+- On failure, tools raise with the actual Python traceback from inside the editor, so you can see exactly which `unreal` API call rejected what.
+
+---
+
+## Editor
+
+### `ue_status`
+
+Discover running editor instances and report connection state. Call this first when anything else fails.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| (none) | | | |
+
+Returns `{connected, connected_to, instances: [{node_id, project, engine_version, machine}], hint}`. `hint` is non-null when no editors were found and explains the Unreal-side setup.
+
+### `ue_python`
+
+Run arbitrary Python inside the editor with full `unreal` module access. The escape hatch for everything not covered by a dedicated tool.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `code` | str | required | Multi-line scripts are fine. Use `print()` for output you want back. |
+
+Returns `{success, output, result}` where `output` is everything the script logged.
+
+### `ue_console_command`
+
+Execute an Unreal console command.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `command` | str | required | For example `stat fps`, `r.ScreenPercentage 50`, `slomo 0.5` |
+
+### `ue_project_info`
+
+No parameters. Returns `{engine_version, project_file, project_dir, current_level}`.
+
+---
+
+## Actors
+
+### `ue_list_actors`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `filter_class` | str | None | Substring match on class name, e.g. `Light` matches PointLight and SpotLight |
+| `name_contains` | str | None | Substring match on outliner label, case-insensitive |
+| `limit` | int | 100 | |
+
+Returns `{count, actors: [{label, name, class, location}]}`.
+
+### `ue_spawn_actor`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `class_path` | str | required | `/Script/Engine.PointLight` or an asset like `/Game/Props/SM_Chair` |
+| `location` | [float, float, float] | [0,0,0] | |
+| `rotation` | [float, float, float] | [0,0,0] | [roll, pitch, yaw] degrees |
+| `scale` | [float, float, float] | None | |
+| `label` | str | None | Outliner label to assign |
+
+Returns the spawned actor's `{label, name, class, location, rotation, scale}`.
+
+Spawning from a StaticMesh asset path creates a StaticMeshActor with that mesh assigned. Useful engine classes: `PointLight`, `SpotLight`, `DirectionalLight`, `RectLight`, `SkyLight`, `ExponentialHeightFog`, `PlayerStart`, `CameraActor`, `TriggerBox`.
+
+### `ue_destroy_actor`
+
+| Param | Type | Default |
+|---|---|---|
+| `label` | str | required |
+
+### `ue_set_actor_transform`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `label` | str | required | |
+| `location` | [float x3] | None | Omitted parts are left unchanged |
+| `rotation` | [float x3] | None | |
+| `scale` | [float x3] | None | |
+
+Returns the actor's full transform after the change.
+
+### `ue_set_actor_property`
+
+Set any editor property on an actor. Property names are snake_case as in the Unreal Python API (`intensity`, `light_color`, `mobility`).
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `label` | str | required | |
+| `property_name` | str | required | snake_case |
+| `value` | any | required | Lists of 3 or 4 numbers are coerced to Vector or LinearColor when the property needs one |
+
+Note: many interesting properties live on a component, not the actor. For those, use `ue_python`, for example `actor.light_component.set_intensity(5000)`.
+
+### `ue_get_actor`
+
+| Param | Type | Default |
+|---|---|---|
+| `label` | str | required |
+
+Returns transform, class, and the full component list `[{name, class}]`.
+
+---
+
+## Assets
+
+### `ue_search_assets`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `root` | str | `/Game` | Folder to search recursively. Use `/Engine` for engine content |
+| `query` | str | None | Case-insensitive substring on asset name |
+| `class_filter` | str | None | Exact class name: `StaticMesh`, `Material`, `Blueprint`, `World`, `Texture2D` |
+| `limit` | int | 50 | |
+
+Returns `{count, assets: [{path, name, class}]}`.
+
+### `ue_asset_info`
+
+| Param | Type | Default |
+|---|---|---|
+| `path` | str | required |
+
+Returns `{path, name, class}` plus `num_lods` and `materials` for static meshes and `generated_class` for blueprints.
+
+### `ue_import_asset`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `file_path` | str | required | Absolute path on the editor's machine: FBX, OBJ, PNG, TGA, WAV, ... |
+| `destination` | str | `/Game/Imported` | Content folder to import into |
+
+Returns `{imported: [object paths]}`. Imports run in automated mode with default import settings.
+
+### `ue_create_folder` / `ue_duplicate_asset` / `ue_delete_asset`
+
+Content-browser folder creation, asset duplication, and deletion. `ue_delete_asset` fails (on purpose) when the asset is still referenced by something else.
+
+### `ue_save_all`
+
+Saves all dirty packages: the open level plus every modified asset. UEMCP tools save the assets they create, but level edits (spawned actors, transforms) are only persisted after a save.
+
+---
+
+## Materials
+
+### `ue_create_material`
+
+Creates a material wired from constant expressions. Good for blockout and stylized work; for node graphs beyond constants, use `ue_python` with `unreal.MaterialEditingLibrary`.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `folder` | str | required | e.g. `/Game/Materials` |
+| `name` | str | required | e.g. `M_Lava` |
+| `base_color` | [r, g, b] | None | 0..1 |
+| `metallic` | float | None | 0..1 |
+| `roughness` | float | None | 0..1 |
+| `emissive` | [r, g, b] | None | Values above 1.0 glow with bloom |
+
+### `ue_create_material_instance`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `folder` | str | required | |
+| `name` | str | required | |
+| `parent_path` | str | required | The parent material (must expose parameters) |
+| `scalar_params` | {name: float} | None | |
+| `vector_params` | {name: [r,g,b] or [r,g,b,a]} | None | |
+| `texture_params` | {name: texture path} | None | |
+
+### `ue_assign_material`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `label` | str | required | Actor outliner label |
+| `material_path` | str | required | |
+| `slot` | int | 0 | Material slot index on the first mesh component |
+
+---
+
+## Blueprints
+
+### `ue_create_blueprint`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `folder` | str | required | |
+| `name` | str | required | e.g. `BP_Collectible` |
+| `parent_class` | str | `/Script/Engine.Actor` | Engine class path or a parent Blueprint asset path |
+
+### `ue_add_component`
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `blueprint_path` | str | required | |
+| `component_class` | str | required | Short name (`StaticMeshComponent`, `SphereComponent`, `PointLightComponent`) or a `/Script` path |
+| `name` | str | None | Component name in the Blueprint |
+
+Adds to the Blueprint's root, compiles, and saves.
+
+### `ue_set_blueprint_default`
+
+Set a class default (CDO property) and recompile.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `blueprint_path` | str | required | |
+| `property_name` | str | required | snake_case |
+| `value` | any | required | |
+
+Blueprint graph logic (nodes and wires) is not scriptable through Unreal's Python API. UEMCP can create the asset, components, and defaults; the event graph remains hand-authored. This is an engine limitation, not a UEMCP one.
+
+---
+
+## Levels
+
+### `ue_open_level` / `ue_new_level`
+
+`ue_open_level(path)` opens an existing level. `ue_new_level(path, template=None)` creates one, optionally from a template level asset, and opens it. Unsaved changes in the current level are discarded without prompting (remote execution runs unattended), so `ue_save_all` first if it matters.
+
+---
+
+## Viewport
+
+### `ue_set_camera` / `ue_get_camera`
+
+Get or set the editor viewport camera `{location, rotation}`.
+
+### `ue_focus_actor`
+
+Selects the actor and aligns the viewport camera to it (same as pressing F in the editor).
+
+### `ue_screenshot`
+
+| Param | Type | Default |
+|---|---|---|
+| `width` | int | 1280 |
+| `height` | int | 720 |
+
+Returns the image directly into the conversation. Uses Unreal's HighResShot, so an editor viewport must be visible (not minimized), and the MCP server must run on the same machine as the editor. The screenshot-then-look loop is the core of agentic level work: make a change, screenshot, evaluate, iterate.
+
+---
+
+## Play
+
+### `ue_play` / `ue_stop_play`
+
+Start and stop simulating the level in the viewport. `ue_play` uses Simulate mode (physics, Niagara, and most gameplay run; no player pawn is possessed). True PIE with input injection is on the roadmap.

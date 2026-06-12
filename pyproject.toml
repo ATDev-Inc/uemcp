@@ -21,8 +21,10 @@ classifiers = [
 dependencies = ["mcp>=1.2.0"]
 
 [project.urls]
-Homepage = "https://github.com/ATDev/uemcp"
-Issues = "https://github.com/ATDev/uemcp/issues"
+Homepage = "https://github.com/ATDev-Inc/uemcp"
+Documentation = "https://github.com/ATDev-Inc/uemcp/tree/main/docs"
+Issues = "https://github.com/ATDev-Inc/uemcp/issues"
+Changelog = "https://github.com/ATDev-Inc/uemcp/blob/main/CHANGELOG.md"
 
 [project.scripts]
 uemcp = "uemcp.server:main"

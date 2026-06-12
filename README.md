@@ -1,8 +1,13 @@
 # UEMCP
 
+[![CI](https://github.com/ATDev-Inc/uemcp/actions/workflows/ci.yml/badge.svg)](https://github.com/ATDev-Inc/uemcp/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/uemcp)](https://pypi.org/project/uemcp/)
+[![Python](https://img.shields.io/pypi/pyversions/uemcp)](https://pypi.org/project/uemcp/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Drive Unreal Engine 5 with Claude. Nothing to install inside Unreal.**
 
-UEMCP is an open source [MCP](https://modelcontextprotocol.io) server by [ATDev](https://github.com/ATDev) that connects Claude (Claude Code, Claude Desktop, or any MCP client) to a live Unreal Engine 5 editor. Spawn actors, build materials, author Blueprints, manage assets, fly the viewport camera, take screenshots, and run arbitrary editor Python, all from a conversation.
+UEMCP is an open source [MCP](https://modelcontextprotocol.io) server by [ATDev](https://github.com/ATDev-Inc) that connects Claude (Claude Code, Claude Desktop, or any MCP client) to a live Unreal Engine 5 editor. Spawn actors, build materials, author Blueprints, manage assets, fly the viewport camera, take screenshots, and run arbitrary editor Python, all from a conversation.
 
 ## Why this one is different
 
@@ -76,6 +81,8 @@ uv run uemcp
 
 Conventions: project content paths look like `/Game/Props/SM_Chair`, engine classes like `/Script/Engine.PointLight`. Distances are centimeters, rotations are `[roll, pitch, yaw]` in degrees, colors are `[r, g, b]` in 0..1.
 
+Full parameter and return documentation for every tool: [docs/tools.md](docs/tools.md).
+
 ## How it works
 
 ```
@@ -114,10 +121,20 @@ UEMCP executes Python inside your editor process, by design. Treat it like givin
 - Tools can modify and delete project content. Use source control on your project. You should be doing that anyway.
 - Review what an agent did with `ue_save_all` withheld if you want a manual checkpoint before anything hits disk.
 
+## Documentation
+
+| Doc | What it covers |
+|---|---|
+| [docs/setup.md](docs/setup.md) | Detailed Unreal and client setup, multiple editors, remote machines |
+| [docs/tools.md](docs/tools.md) | Full reference for all 31 tools: parameters, returns, examples |
+| [docs/architecture.md](docs/architecture.md) | The wire protocol, the snippet harness, and how to add a tool |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Connection problems, firewalls, common tool errors |
+| [docs/cookbook.md](docs/cookbook.md) | Prompt recipes: lighting rigs, greyboxing, asset audits |
+
 ## Development
 
 ```sh
-git clone https://github.com/ATDev/uemcp
+git clone https://github.com/ATDev-Inc/uemcp
 cd uemcp
 uv sync
 uv run pytest

@@ -1,0 +1,47 @@
+name: Bug report
+description: Something broke
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you ask for, what did you expect, what did you get? Paste the tool error if there was one (UEMCP errors include the in-editor Python traceback, which is the most useful part).
+    validations:
+      required: true
+  - type: textarea
+    id: ue-status
+    attributes:
+      label: Output of ue_status
+      description: Ask Claude to run ue_status, or run the discovery probe from docs/troubleshooting.md.
+      render: json
+  - type: input
+    id: engine-version
+    attributes:
+      label: Unreal Engine version
+      placeholder: "5.4.4 (Launcher)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS of the machine running the editor and the server
+      placeholder: "Windows 11 (both on same machine)"
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client and how the server is launched
+      placeholder: "Claude Code, uvx uemcp"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before filing
+      options:
+        - label: I checked docs/troubleshooting.md
+          required: true
+        - label: I searched existing issues
+          required: true

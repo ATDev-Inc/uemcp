@@ -1,0 +1,34 @@
+name: Feature or tool request
+description: Propose a new tool or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: What are you trying to do?
+      description: Describe the workflow, not just the tool. "I want Claude to be able to..." is the right shape.
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Does ue_python cover it today?
+      description: If you have a working ue_python snippet for this, paste it. A working snippet is 80% of a new tool (see CONTRIBUTING.md).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Actors / level editing
+        - Assets / content browser
+        - Materials
+        - Blueprints
+        - Sequencer
+        - Niagara
+        - Landscape
+        - Viewport / screenshots
+        - Play in editor
+        - Protocol / connection
+        - Other
+    validations:
+      required: true
