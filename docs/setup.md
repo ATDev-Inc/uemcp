@@ -90,6 +90,7 @@ or set `UEMCP_PROJECT=MyGame` in the MCP server's `env` block. The match is agai
 | `UEMCP_COMMAND_TIMEOUT` | `120` | Seconds to wait for a command result |
 | `UEMCP_DISCOVERY_TIMEOUT` | `2` | Seconds to wait for editors to answer a ping |
 | `UEMCP_DISCOVERY_ATTEMPTS` | `3` | How many discovery round-trips to try before giving up |
+| `UEMCP_EDITOR_CMD` | (derived) | Path to `UnrealEditor-Cmd` used for headless `ue_render_sequence`; defaults to the running editor's executable |
 
 ## Editor and server on different machines
 

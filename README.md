@@ -86,6 +86,7 @@ More detail, including pinning to one project when several editors are open: [do
 | Levels | `ue_open_level`, `ue_new_level` |
 | Viewport | `ue_set_camera`, `ue_get_camera`, `ue_focus_actor`, `ue_screenshot` |
 | Play | `ue_play`, `ue_stop_play` |
+| Render | `ue_render_sequence` |
 
 Conventions: project content paths look like `/Game/Props/SM_Chair`, engine classes like `/Script/Engine.PointLight`. Distances are centimeters, rotations are `[roll, pitch, yaw]` in degrees, colors are `[r, g, b]` in 0..1.
 
@@ -106,6 +107,10 @@ Unreal Editor (built-in Python remote execution)
 
 Each tool builds a small Python snippet, wraps it in a harness that catches exceptions, runs it in the editor, and parses a sentinel-prefixed JSON line back out of the log output. The snippet builders are pure functions, so CI compiles every one of them without needing Unreal installed.
 
+## How it compares
+
+UEMCP is infrastructure, not a product: an open MCP server that exposes a live UE5 editor to any MCP client, rather than an embedded in-editor agent with a bundled model. For the tradeoffs against embedded agents (and what we borrow from them), see [docs/positioning.md](docs/positioning.md).
+
 ## Configuration
 
 Everything works with defaults when the editor and server are on the same machine. Override with environment variables when needed:
@@ -119,6 +124,7 @@ Everything works with defaults when the editor and server are on the same machin
 | `UEMCP_COMMAND_TIMEOUT` | `120` | Per-command timeout in seconds |
 | `UEMCP_DISCOVERY_TIMEOUT` | `2` | Discovery wait in seconds |
 | `UEMCP_DISCOVERY_ATTEMPTS` | `3` | Discovery retries before giving up |
+| `UEMCP_EDITOR_CMD` | (derived) | Path to `UnrealEditor-Cmd` for headless renders; defaults to the running editor's executable |
 
 `uemcp --project MyGame` is shorthand for `UEMCP_PROJECT=MyGame`.
 

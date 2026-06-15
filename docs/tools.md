@@ -361,3 +361,43 @@ Returns the image directly into the conversation. Uses Unreal's HighResShot, so 
 ### `ue_play` / `ue_stop_play`
 
 Start and stop simulating the level in the viewport. `ue_play` uses Simulate mode (physics, Niagara, and most gameplay run; no player pawn is possessed). True PIE with input injection is on the roadmap.
+
+---
+
+## Render
+
+### `ue_render_sequence`
+
+| Param | Type | Default |
+|---|---|---|
+| `sequence_path` | str | (required) |
+| `output_dir` | str | `<project>/Saved/MovieRenders/<sequence>` |
+| `output_format` | str | `png` |
+| `resolution` | [int, int] | `[1920, 1080]` |
+| `start_frame` | int | (sequence range) |
+| `end_frame` | int | (sequence range) |
+| `frame_rate` | int | (sequence rate) |
+| `map_path` | str | current level |
+| `config_path` | str | (built from params) |
+| `headless` | bool | `false` |
+| `timeout` | float | `600` |
+
+Renders a Level Sequence with [Movie Render Queue](https://dev.epicgames.com/documentation/en-us/unreal-engine/render-cinematics-in-unreal-engine). The **Movie Render Queue plugin must be enabled** in the project; the tool returns a clear error if it is not.
+
+`output_format` is `png`, `jpg`, `bmp`, `exr` (image sequences), `prores` (a `.mov` video, the reliable built-in encoder), or `mp4`. `mp4` has no built-in output node: it renders PNG frames and then runs the project's configured [command-line (ffmpeg) encoder](https://dev.epicgames.com/documentation/en-us/unreal-engine/command-line-encoding-in-unreal-engine) over them, so it only produces a video when that encoder is set up in Project Settings; the frames are kept either way. Prefer `prores` for dependency-free video.
+
+`config_path` (optional) uses a saved Movie Pipeline config preset instead of building one from the parameters; it means the same thing in both modes.
+
+**In-editor mode** (default) builds the Movie Pipeline config from the parameters, renders through a PIE executor, and blocks until the render finishes (a marker file signals completion) or `timeout` seconds elapse. Returns `{mode, status, output_dir, format, files, frame_count}`.
+
+**Headless mode** (`headless=true`) renders in a separate offscreen `UnrealEditor-Cmd` process using the single-sequence command line (map positional, `-LevelSequence`, `-MoviePipelineConfig`). When `config_path` is omitted it auto-authors a config preset asset under `/Game/UEMCP/Render` from the parameters, so no manual setup is needed. The editor executable is taken from `UEMCP_EDITOR_CMD`, else derived from the running editor; with the editor closed, set `UEMCP_EDITOR_CMD` and pass `config_path` (no live editor to query or author from). Returns `{mode, status, output_dir, format, exit_code, command, files, log_tail}`.
+
+> **Status: experimental.** The pure-Python logic (format mapping, command line, snippet generation) is covered by tests, but the in-editor render and headless paths have not yet been exercised against a live editor. The Unreal API names this uses can vary across 5.x. See the open items below before relying on it in production.
+>
+> Open items / not yet verified against a live editor:
+> - `build_save_render_config` creates the preset with `AssetTools.create_asset(..., factory=None)`; if a factory turns out to be required for `MoviePipelinePrimaryConfig`, headless auto-author needs adjusting.
+> - In-editor completion relies on `MoviePipelinePIEExecutor.on_executor_finished_delegate` and a keep-alive reference; the marker-file handshake is untested at runtime.
+> - `MoviePipelineOutputSetting` field names (`output_directory`, `output_resolution`, `use_custom_playback_range`, `output_frame_rate`) and `render_queue_with_executor_instance` are assumed stable across UE 5.x.
+> - `mp4` depends on the project's command-line (ffmpeg) encoder being configured; by design, not auto-set.
+> - Headless against an already-open project can hit asset file locks; render with the editor closed when possible.
+> - For a user-supplied `config_path` in headless mode, output-file collection is best-effort (the config's output directory is not read back).

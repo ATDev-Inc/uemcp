@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import tempfile
 import time
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP, Image
 
-from . import __version__, assets, snippets
+from . import __version__, assets, render, snippets
 from .bridge import UnrealBridge
 from .remote_exec import MODE_EXEC_FILE
 
@@ -394,6 +395,109 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
         """Stop the active simulate/play-in-editor session."""
         return bridge.run_json(snippets.build_stop_play())
 
+    # -------------------------------------------------- movie render queue ----
+
+    @mcp.tool()
+    def ue_render_sequence(
+        sequence_path: str,
+        output_dir: str | None = None,
+        output_format: str = "png",
+        resolution: list[int] | None = None,
+        start_frame: int | None = None,
+        end_frame: int | None = None,
+        frame_rate: int | None = None,
+        map_path: str | None = None,
+        config_path: str | None = None,
+        headless: bool = False,
+        timeout: float = 600.0,
+    ) -> dict:
+        """Render a Level Sequence with Movie Render Queue (needs the MRQ plugin).
+
+        output_format is png, jpg, bmp, exr, prores (.mov video), or mp4. resolution
+        is [width, height]. In-editor mode (the default) renders through a PIE
+        executor and blocks until the render finishes or timeout seconds elapse.
+        Set headless=True to render in a separate offscreen process. Pass config_path
+        to use a saved Movie Pipeline config preset instead of building one from the
+        parameters. mp4 has no built-in encoder: it renders PNG frames and runs the
+        project's configured command-line (ffmpeg) encoder, so it needs that set up;
+        prores is the reliable built-in video output.
+        """
+        targets = bridge.run_json(snippets.build_render_targets())
+        seq_name = sequence_path.rstrip("/").rsplit("/", 1)[-1].split(".")[0]
+        out_dir = output_dir or str(
+            Path(targets["project_dir"]) / "Saved" / "MovieRenders" / seq_name
+        )
+        output_classes = [] if config_path else render.resolve_output_classes(output_format)
+
+        if headless:
+            map_package = map_path.split(".")[0] if map_path else targets.get("map_package")
+            if not map_package:
+                raise RuntimeError("No map to render; open a level or pass map_path.")
+            if config_path:
+                config_object = render.to_object_path(config_path)
+                collect_dir = out_dir if output_dir else None
+            else:
+                cfg_asset = f"/Game/UEMCP/Render/MRQ_{seq_name}"
+                saved = bridge.run_json(
+                    snippets.build_save_render_config(
+                        cfg_asset,
+                        out_dir,
+                        output_classes,
+                        resolution,
+                        start_frame,
+                        end_frame,
+                        frame_rate,
+                    )
+                )
+                config_object = saved["config_object"]
+                collect_dir = saved["output_dir"]
+            result = render.run_headless(
+                render.resolve_editor_cmd(targets.get("editor_exe")),
+                targets["project_file"],
+                map_package,
+                render.to_object_path(sequence_path),
+                config_object,
+                resolution,
+                collect_dir,
+                timeout,
+            )
+            return {
+                "mode": "headless",
+                "status": "ok" if result["exit_code"] == 0 else "failed",
+                "output_dir": collect_dir,
+                "format": output_format,
+                **result,
+            }
+
+        marker = str(Path(out_dir) / "_uemcp_render.json")
+        map_object = render.to_object_path(map_path) if map_path else None
+        started = time.time()
+        info = bridge.run_json(
+            snippets.build_render_sequence(
+                sequence_path,
+                out_dir,
+                output_classes,
+                marker,
+                resolution,
+                start_frame,
+                end_frame,
+                frame_rate,
+                map_object,
+                config_path,
+            )
+        )
+        payload = _wait_for_marker(Path(info["marker"]), started, timeout)
+        files = payload.get("files", [])
+        return {
+            "mode": "in_editor",
+            "status": "ok" if payload.get("success") else "failed",
+            "output_dir": info["output_dir"],
+            "format": output_format,
+            "files": files,
+            "frame_count": len(files),
+            "error": payload.get("error"),
+        }
+
     # ------------------------------------------------------------ prompts ----
 
     @mcp.prompt()
@@ -450,6 +554,23 @@ def _wait_for_screenshot(directory: Path, started: float) -> Path:
     raise RuntimeError(
         f"Screenshot did not appear in {directory} within {SCREENSHOT_TIMEOUT:.0f}s. "
         "Is an editor viewport visible (not minimized)?"
+    )
+
+
+def _wait_for_marker(marker: Path, started: float, timeout: float) -> dict:
+    """Poll for the render's completion marker and return its parsed payload."""
+    deadline = started + timeout
+    while time.time() < deadline:
+        if marker.exists():
+            try:
+                return json.loads(marker.read_text())
+            except (ValueError, OSError):
+                time.sleep(0.3)  # mid-write; read again
+                continue
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"Render did not finish within {timeout:.0f}s (no marker at {marker}). "
+        "The render may still be running in the editor."
     )
 
 
