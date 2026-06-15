@@ -106,6 +106,10 @@ Unreal Editor (built-in Python remote execution)
 
 Each tool builds a small Python snippet, wraps it in a harness that catches exceptions, runs it in the editor, and parses a sentinel-prefixed JSON line back out of the log output. The snippet builders are pure functions, so CI compiles every one of them without needing Unreal installed.
 
+## How it compares
+
+UEMCP is infrastructure, not a product: an open MCP server that exposes a live UE5 editor to any MCP client, rather than an embedded in-editor agent with a bundled model. For the tradeoffs against embedded agents (and what we borrow from them), see [docs/positioning.md](docs/positioning.md).
+
 ## Configuration
 
 Everything works with defaults when the editor and server are on the same machine. Override with environment variables when needed:
