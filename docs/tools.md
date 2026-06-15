@@ -388,6 +388,8 @@ Renders a Level Sequence with [Movie Render Queue](https://dev.epicgames.com/doc
 
 `config_path` (optional) uses a saved Movie Pipeline config preset instead of building one from the parameters; it means the same thing in both modes.
 
+`sequence_path`, `config_path`, and `map_path` must be `/Game/...` content paths (letters, digits, `_`, `.`, `/`). The tool rejects anything else before launching the headless process, so a path cannot smuggle extra `UnrealEditor-Cmd` switches.
+
 **In-editor mode** (default) builds the Movie Pipeline config from the parameters, renders through a PIE executor, and blocks until the render finishes (a marker file signals completion) or `timeout` seconds elapse. Returns `{mode, status, output_dir, format, files, frame_count}`.
 
 **Headless mode** (`headless=true`) renders in a separate offscreen `UnrealEditor-Cmd` process using the single-sequence command line (map positional, `-LevelSequence`, `-MoviePipelineConfig`). When `config_path` is omitted it auto-authors a config preset asset under `/Game/UEMCP/Render` from the parameters, so no manual setup is needed. The editor executable is taken from `UEMCP_EDITOR_CMD`, else derived from the running editor; with the editor closed, set `UEMCP_EDITOR_CMD` and pass `config_path` (no live editor to query or author from). Returns `{mode, status, output_dir, format, exit_code, command, files, log_tail}`.

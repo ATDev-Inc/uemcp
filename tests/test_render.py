@@ -27,6 +27,29 @@ def test_to_object_path():
     assert render.to_object_path("/Game/Cine/Cfg.Cfg") == "/Game/Cine/Cfg.Cfg"
 
 
+def test_validate_object_path_accepts_content_paths():
+    assert render.validate_object_path("/Game/Cine/Seq", "x") == "/Game/Cine/Seq"
+    assert render.validate_object_path("/Game/Maps/Main.Main", "x") == "/Game/Maps/Main.Main"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        '/Game/Cfg -ExecCmds="py x"',  # the injection payload
+        "/Game/Cfg -windowed",
+        "/Game/a b",  # any whitespace
+        "Game/NoLeadingSlash",
+        "-Game/LeadingDash",
+        "/Game/Cfg=1",
+        '/Game/Cfg"x',
+        "",
+    ],
+)
+def test_validate_object_path_rejects_injection(bad):
+    with pytest.raises(ValueError):
+        render.validate_object_path(bad, "x")
+
+
 def test_build_headless_command():
     cmd = render.build_headless_command(
         "UnrealEditor-Cmd.exe",

@@ -10,8 +10,15 @@ without launching Unreal.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
+
+# Unreal content/object paths: /Game/.../Asset(.Asset). Restricting to this shape
+# keeps tool-supplied paths out of the UnrealEditor-Cmd switch space (the engine
+# rebuilds and re-tokenizes its command line on whitespace, so a space plus a
+# leading dash inside one argv element would become a new switch).
+_OBJECT_PATH = re.compile(r"^/[A-Za-z0-9_./]+$")
 
 # output_format -> the unreal output-setting class(es) added to a Movie Pipeline
 # config. mp4 has no built-in output node: it renders PNG frames and runs the
@@ -61,6 +68,20 @@ def resolve_editor_cmd(editor_exe: str | None) -> str:
         return str(path)
     cmd = path.with_name(path.stem + "-Cmd" + path.suffix)
     return str(cmd) if cmd.exists() else str(path)
+
+
+def validate_object_path(value: str, kind: str) -> str:
+    """Reject content paths that could inject extra UnrealEditor-Cmd switches.
+
+    Returns the value unchanged when it is a well-formed /Game/... content path;
+    raises ValueError otherwise (which also catches typos early).
+    """
+    if not isinstance(value, str) or not _OBJECT_PATH.match(value):
+        raise ValueError(
+            f"Invalid {kind} {value!r}: expected a /Game/... content path "
+            "(letters, digits, '_', '.', '/' only)."
+        )
+    return value
 
 
 def to_object_path(asset_path: str) -> str:

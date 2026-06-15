@@ -21,6 +21,9 @@ All notable changes to UEMCP are documented here. The format follows [Keep a Cha
 ### Security
 
 - Asset downloads are restricted to https (blocks `file://` and SSRF via URLs that arrive in third-party API responses), zip extraction is capped by size and entry count (zip-bomb guard), partial downloads are removed on failure, and upstream HTTP error bodies are no longer echoed back to the client.
+- `ue_render_sequence` validates its `sequence_path`, `config_path`, and `map_path` arguments against a `/Game/...` content-path shape before building the headless `UnrealEditor-Cmd` command line. Unreal rebuilds and re-tokenizes its command line on whitespace, so this prevents a crafted path from injecting extra editor switches.
+- Snippet builders reject non-finite numbers (`inf`/`nan`) in vector and rotation inputs with a clear error instead of emitting bare `inf`/`nan` tokens that would raise `NameError` inside the editor.
+- CI/release workflows hardened: GitHub Actions pinned to commit SHAs, `GITHUB_TOKEN` scoped to least privilege (`contents: read`), checkout credential persistence disabled, and a Dependabot config added to keep actions and dependencies current.
 
 ## [0.1.0] - 2026-06-12
 

@@ -208,6 +208,18 @@ def test_snippet_has_return(name, builder, args):
     assert "return" in builder(*args)
 
 
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_non_finite_vector_rejected(bad):
+    with pytest.raises(ValueError):
+        snippets.build_spawn_actor("/Script/Engine.PointLight", [bad, 0, 0], [0, 0, 0], None, None)
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("nan")])
+def test_non_finite_rotation_rejected(bad):
+    with pytest.raises(ValueError):
+        snippets.build_set_camera([0, 0, 0], [bad, 0, 0])
+
+
 def test_repr_interpolation_is_safe_for_quotes():
     body = snippets.build_destroy_actor('He said "hi" and it\'s fine')
     compile(wrap_body(body), "<quotes>", "exec")
