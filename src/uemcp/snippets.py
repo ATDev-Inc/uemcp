@@ -11,6 +11,7 @@ Values are interpolated with repr(), so anything that came in as JSON
 
 from __future__ import annotations
 
+import math
 import textwrap
 
 _FIND_ACTOR = """\
@@ -37,13 +38,22 @@ return {
 }"""
 
 
+def _finite(values, kind: str):
+    """Coerce to floats and reject inf/nan, which repr() emits as bare tokens
+    (inf/nan) that would raise NameError inside the editor snippet."""
+    out = [float(v) for v in values]
+    if not all(math.isfinite(v) for v in out):
+        raise ValueError(f"Non-finite {kind} value: {values!r}")
+    return out
+
+
 def _vector(values) -> str:
-    x, y, z = (float(v) for v in values)
+    x, y, z = _finite(values, "vector")
     return f"unreal.Vector({x!r}, {y!r}, {z!r})"
 
 
 def _rotator(values) -> str:
-    roll, pitch, yaw = (float(v) for v in values)
+    roll, pitch, yaw = _finite(values, "rotation")
     return f"unreal.Rotator(roll={roll!r}, pitch={pitch!r}, yaw={yaw!r})"
 
 

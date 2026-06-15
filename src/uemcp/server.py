@@ -422,6 +422,11 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
         project's configured command-line (ffmpeg) encoder, so it needs that set up;
         prores is the reliable built-in video output.
         """
+        render.validate_object_path(sequence_path, "sequence_path")
+        if config_path:
+            render.validate_object_path(config_path, "config_path")
+        if map_path:
+            render.validate_object_path(map_path, "map_path")
         targets = bridge.run_json(snippets.build_render_targets())
         seq_name = sequence_path.rstrip("/").rsplit("/", 1)[-1].split(".")[0]
         out_dir = output_dir or str(
