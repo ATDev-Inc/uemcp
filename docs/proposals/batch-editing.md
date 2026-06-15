@@ -1,6 +1,6 @@
 # Proposal: batch editing (`ue_batch_edit`)
 
-Status: draft spec (not implemented)
+Status: implemented. See `ue_batch_edit` in [../tools.md](../tools.md).
 
 ## Problem
 

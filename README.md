@@ -17,7 +17,7 @@ Most Unreal MCP servers ship a C++ plugin you have to copy into your project and
 - **Works with vanilla UE 5.0 through 5.7**, including Epic Games Launcher builds.
 - **Structured results, not log scraping.** Every tool runs inside an error-capturing harness in the editor and returns clean JSON, with real Python tracebacks when something fails.
 - **Self-healing connection.** Restart the editor mid-session and the next tool call reconnects automatically.
-- **An escape hatch.** `ue_python` gives Claude the full `unreal` module for anything the 36 dedicated tools do not cover.
+- **An escape hatch.** `ue_python` gives Claude the full `unreal` module for anything the 38 dedicated tools do not cover.
 
 ## Quickstart
 
@@ -142,7 +142,7 @@ UEMCP executes Python inside your editor process, by design. Treat it like givin
 |---|---|
 | [docs/getting-started.md](docs/getting-started.md) | Friendly end-to-end walkthrough from zero to your first spawned actor |
 | [docs/setup.md](docs/setup.md) | Detailed Unreal and client setup, multiple editors, remote machines |
-| [docs/tools.md](docs/tools.md) | Full reference for all 37 tools: parameters, returns, examples |
+| [docs/tools.md](docs/tools.md) | Full reference for all 39 tools: parameters, returns, examples |
 | [docs/architecture.md](docs/architecture.md) | The wire protocol, the snippet harness, and how to add a tool |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Connection problems, firewalls, common tool errors |
 | [docs/cookbook.md](docs/cookbook.md) | Prompt recipes: lighting rigs, greyboxing, asset audits |
