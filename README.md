@@ -86,6 +86,7 @@ More detail, including pinning to one project when several editors are open: [do
 | Levels | `ue_open_level`, `ue_new_level` |
 | Viewport | `ue_set_camera`, `ue_get_camera`, `ue_focus_actor`, `ue_screenshot` |
 | Play | `ue_play`, `ue_stop_play` |
+| Render | `ue_render_sequence` |
 
 Conventions: project content paths look like `/Game/Props/SM_Chair`, engine classes like `/Script/Engine.PointLight`. Distances are centimeters, rotations are `[roll, pitch, yaw]` in degrees, colors are `[r, g, b]` in 0..1.
 
@@ -119,6 +120,7 @@ Everything works with defaults when the editor and server are on the same machin
 | `UEMCP_COMMAND_TIMEOUT` | `120` | Per-command timeout in seconds |
 | `UEMCP_DISCOVERY_TIMEOUT` | `2` | Discovery wait in seconds |
 | `UEMCP_DISCOVERY_ATTEMPTS` | `3` | Discovery retries before giving up |
+| `UEMCP_EDITOR_CMD` | (derived) | Path to `UnrealEditor-Cmd` for headless renders; defaults to the running editor's executable |
 
 `uemcp --project MyGame` is shorthand for `UEMCP_PROJECT=MyGame`.
 
