@@ -111,6 +111,33 @@ Note: many interesting properties live on a component, not the actor. For those,
 
 Returns transform, class, and the full component list `[{name, class}]`.
 
+### `ue_batch_edit`
+
+| Param | Type | Default |
+|---|---|---|
+| `operations` | list[dict] | required |
+| `filter_class` | str | none |
+| `name_contains` | str | none |
+| `labels` | list[str] | none |
+| `limit` | int | 500 |
+| `continue_on_error` | bool | true |
+| `dry_run` | bool | false |
+
+Applies an ordered list of operations to every matched actor in a single editor round trip, instead of one tool call per actor. Select actors by `labels` (exact match) and/or `filter_class` + `name_contains` (same semantics as `ue_list_actors`); at least one selector is required, so it never edits the whole level by accident. If the match count exceeds `limit` the call errors rather than truncating.
+
+Each entry in `operations` is a dict keyed by `op`:
+
+| op | fields | meaning |
+|---|---|---|
+| `set_property` | `property`, `value` | `set_editor_property`, with the same list to Vector/LinearColor coercion as `ue_set_actor_property` |
+| `set_transform` | `location?`, `rotation?`, `scale?`, `mode` | `mode: "absolute"` sets, `"relative"` adds to location/rotation and multiplies scale |
+| `set_material` | `material_path`, `slot?` | assign to the actor's first mesh component |
+| `destroy` | - | delete the actor (always applied last) |
+
+`dry_run: true` resolves the selection and returns the actors that would be touched without changing anything. Relative transforms are the headline capability here: "nudge every selected actor +100 in Z" or "rotate them all 90 degrees" is not expressible through the per-actor tools. Returns `{matched, applied, failed, dry_run, results}`, where `results` is per-actor `{label, ops, ok, error?}`.
+
+Relative rotation composes as a Euler add, which is fine for axis-aligned nudges but can behave unexpectedly near gimbal cases; set an absolute rotation when you need exactness.
+
 ---
 
 ## Assets

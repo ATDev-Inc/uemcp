@@ -9,6 +9,7 @@ All notable changes to UEMCP are documented here. The format follows [Keep a Cha
 - Asset-library providers: `ue_search_sketchfab` and `ue_import_sketchfab` find and import downloadable Sketchfab models (search is public; download needs `SKETCHFAB_API_TOKEN`), plus `ue_asset_providers` to report which providers have credentials configured. Providers share a dependency-free interface (`src/uemcp/assets.py`) that further providers plug into.
 - AI generation via Meshy: `ue_generate_model` starts a text-to-3D task, `ue_generation_status` polls it, and `ue_import_generated` imports the finished model (needs `MESHY_API_KEY`).
 - `unreal_workflow_strategy` MCP prompt that guides the orient, place relative to the scene, then screenshot to verify loop.
+- `ue_batch_edit` applies an ordered list of operations (set_property, set_transform, set_material, destroy) to many actors selected by label or filter in a single editor round trip. Supports relative transforms (add to location/rotation, multiply scale), a dry-run mode, a match limit, and per-actor error collection.
 
 ### Changed
 
