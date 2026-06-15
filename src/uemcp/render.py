@@ -36,8 +36,8 @@ def resolve_output_classes(output_format: str) -> list[str]:
         return list(FORMAT_SETTINGS[key])
     except KeyError:
         raise ValueError(
-            "Unknown output_format %r; expected one of: %s"
-            % (output_format, ", ".join(sorted(FORMAT_SETTINGS)))
+            f"Unknown output_format {output_format!r}; expected one of: "
+            f"{', '.join(sorted(FORMAT_SETTINGS))}"
         ) from None
 
 
