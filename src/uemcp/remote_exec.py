@@ -49,6 +49,7 @@ class RemoteExecutionConfig:
     command_host: str = "127.0.0.1"
     command_port: int = 0  # 0 means let the OS pick a free port
     discovery_timeout: float = 2.0
+    discovery_attempts: int = 3  # discovery is one UDP round-trip; retry before giving up
     command_timeout: float = 120.0
     project_name: str | None = None  # prefer this project when several editors run
 
@@ -63,6 +64,12 @@ class RemoteExecutionConfig:
         cfg.discovery_timeout = float(
             os.environ.get("UEMCP_DISCOVERY_TIMEOUT", cfg.discovery_timeout)
         )
+        try:
+            cfg.discovery_attempts = int(
+                os.environ.get("UEMCP_DISCOVERY_ATTEMPTS", cfg.discovery_attempts)
+            )
+        except ValueError:
+            pass  # keep the default on a malformed value instead of crashing startup
         cfg.command_timeout = float(os.environ.get("UEMCP_COMMAND_TIMEOUT", cfg.command_timeout))
         cfg.project_name = os.environ.get("UEMCP_PROJECT", cfg.project_name)
         return cfg
@@ -260,10 +267,20 @@ class RemoteExecutionClient:
             sock.close()
         return list(instances.values())
 
+    def discover_with_retries(self) -> list[UnrealInstance]:
+        """Discovery is a single UDP round-trip that can be dropped (loopback-only
+        setups, busy networks, VPN adapters). Retry a few times before giving up."""
+        instances: list[UnrealInstance] = []
+        for _ in range(max(1, self.config.discovery_attempts)):
+            instances = self.discover()
+            if instances:
+                break
+        return instances
+
     def connect(self, node_id: str | None = None) -> UnrealInstance:
         """Open a command channel to one editor, discovering it first if needed."""
         self.close()
-        instances = self.discover()
+        instances = self.discover_with_retries()
         if not instances:
             raise RemoteExecutionError(
                 "No Unreal Editor instances found on the network. Make sure the editor is "

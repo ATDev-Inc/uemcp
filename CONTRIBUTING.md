@@ -8,7 +8,7 @@ Thanks for helping out. The bar for a good contribution is simple: it should wor
 git clone https://github.com/ATDev-Inc/uemcp
 cd uemcp
 uv sync
-uv run pytest        # 87 tests, no Unreal needed
+uv run pytest        # 114 tests, no Unreal needed
 uv run ruff check .
 ```
 
@@ -26,7 +26,8 @@ Read [docs/architecture.md](docs/architecture.md) before touching code. It is sh
 2. **Cookbook recipes.** A prompt that produced a great result belongs in [docs/cookbook.md](docs/cookbook.md).
 3. **Engine version reports.** Tested UEMCP against an engine version not listed in recent PRs? An issue saying "all good on 5.x.y" (or what broke) is genuinely useful.
 4. **New tools.** If you keep reaching for the same `ue_python` snippet, that is a tool waiting to be born. A working snippet pasted into a feature request is 80% of the work.
-5. **Roadmap items.** Sequencer, Niagara, landscape, true PIE control, asset thumbnails as resources. Comment on the tracking issue before starting anything large.
+5. **Asset providers.** The `AssetProvider` and `GenerativeProvider` interfaces in `src/uemcp/assets.py` are a clean place to add an asset catalog (like Sketchfab) or a generator (like Meshy). A provider only has to search or generate and return a local file; the existing import path takes it from there. Keep it stdlib-only, and unit-test it with the HTTP layer monkeypatched, the way `tests/test_assets.py` does.
+6. **Roadmap items.** Sequencer, Niagara, landscape, true PIE control, asset thumbnails as resources. Comment on the tracking issue before starting anything large.
 
 ## Adding a tool
 

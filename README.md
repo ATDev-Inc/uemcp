@@ -14,12 +14,14 @@ UEMCP is an open source [MCP](https://modelcontextprotocol.io) server by [ATDev]
 Most Unreal MCP servers ship a C++ plugin you have to copy into your project and compile. UEMCP speaks Unreal's **built-in Python remote execution protocol** instead: the same multicast discovery and TCP command channel that ships with every copy of the engine. That means:
 
 - **Zero install on the Unreal side.** No plugin to build, no project files to modify, no engine version matrix to chase.
-- **Works with vanilla UE 5.0 through 5.6**, including Epic Games Launcher builds.
+- **Works with vanilla UE 5.0 through 5.7**, including Epic Games Launcher builds.
 - **Structured results, not log scraping.** Every tool runs inside an error-capturing harness in the editor and returns clean JSON, with real Python tracebacks when something fails.
 - **Self-healing connection.** Restart the editor mid-session and the next tool call reconnects automatically.
-- **An escape hatch.** `ue_python` gives Claude the full `unreal` module for anything the 29 dedicated tools do not cover.
+- **An escape hatch.** `ue_python` gives Claude the full `unreal` module for anything the 36 dedicated tools do not cover.
 
 ## Quickstart
+
+New here? The step-by-step [getting started guide](docs/getting-started.md) walks through everything below in detail, including the one gotcha that trips up Windows machines with a VPN.
 
 ### 1. Set up Unreal (one time, about 30 seconds)
 
@@ -77,6 +79,8 @@ More detail, including pinning to one project when several editors are open: [do
 | Editor | `ue_status`, `ue_python`, `ue_console_command`, `ue_project_info` |
 | Actors | `ue_list_actors`, `ue_spawn_actor`, `ue_destroy_actor`, `ue_set_actor_transform`, `ue_set_actor_property`, `ue_get_actor` |
 | Assets | `ue_search_assets`, `ue_asset_info`, `ue_import_asset`, `ue_create_folder`, `ue_duplicate_asset`, `ue_delete_asset`, `ue_save_all` |
+| Asset libraries | `ue_asset_providers`, `ue_search_sketchfab`, `ue_import_sketchfab` |
+| AI generation | `ue_generate_model`, `ue_generation_status`, `ue_import_generated` |
 | Materials | `ue_create_material`, `ue_create_material_instance`, `ue_assign_material` |
 | Blueprints | `ue_create_blueprint`, `ue_add_component`, `ue_set_blueprint_default` |
 | Levels | `ue_open_level`, `ue_new_level` |
@@ -114,6 +118,7 @@ Everything works with defaults when the editor and server are on the same machin
 | `UEMCP_COMMAND_HOST` | `127.0.0.1` | Host the editor connects back to |
 | `UEMCP_COMMAND_TIMEOUT` | `120` | Per-command timeout in seconds |
 | `UEMCP_DISCOVERY_TIMEOUT` | `2` | Discovery wait in seconds |
+| `UEMCP_DISCOVERY_ATTEMPTS` | `3` | Discovery retries before giving up |
 
 `uemcp --project MyGame` is shorthand for `UEMCP_PROJECT=MyGame`.
 
@@ -129,8 +134,9 @@ UEMCP executes Python inside your editor process, by design. Treat it like givin
 
 | Doc | What it covers |
 |---|---|
+| [docs/getting-started.md](docs/getting-started.md) | Friendly end-to-end walkthrough from zero to your first spawned actor |
 | [docs/setup.md](docs/setup.md) | Detailed Unreal and client setup, multiple editors, remote machines |
-| [docs/tools.md](docs/tools.md) | Full reference for all 31 tools: parameters, returns, examples |
+| [docs/tools.md](docs/tools.md) | Full reference for all 37 tools: parameters, returns, examples |
 | [docs/architecture.md](docs/architecture.md) | The wire protocol, the snippet harness, and how to add a tool |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Connection problems, firewalls, common tool errors |
 | [docs/cookbook.md](docs/cookbook.md) | Prompt recipes: lighting rigs, greyboxing, asset audits |
@@ -149,6 +155,7 @@ The test suite runs entirely without Unreal: protocol tests talk to a fake edito
 
 ## Roadmap
 
+- More asset providers on the existing interface (Sketchfab catalog and Meshy text-to-3D ship today): image-to-3D generation, more generation backends, and Fab/Quixel Megascans
 - Sequencer tools (create level sequences, bind actors, render movies)
 - Niagara system spawning and parameter control
 - Landscape sculpting primitives

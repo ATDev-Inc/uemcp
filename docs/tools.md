@@ -153,6 +153,83 @@ Saves all dirty packages: the open level plus every modified asset. UEMCP tools 
 
 ---
 
+## Asset libraries
+
+Pull assets from external catalogs and import them with the same path as `ue_import_asset`. Providers live in `src/uemcp/assets.py` behind a small `AssetProvider` interface; Sketchfab is the first one.
+
+### `ue_asset_providers`
+
+List the available providers and whether each one's download credentials are set.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| (none) | | | |
+
+Returns `{providers: [{name, kind, search, download_ready, token_env}]}`. `download_ready` is false until the provider's token env var is set.
+
+### `ue_search_sketchfab`
+
+Search [Sketchfab](https://sketchfab.com) for downloadable models. Search is public and needs no token.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `query` | str | required | Free-text search, e.g. `"wooden barrel"`. |
+| `limit` | int | `12` | Capped at 24 by the Sketchfab API. |
+
+Returns `{count, results: [{uid, name, author, license, face_count, downloadable}]}`. Check the `license` before using a model, and feed `uid` to `ue_import_sketchfab`.
+
+### `ue_import_sketchfab`
+
+Download a model by `uid` and import it into the project. Requires `SKETCHFAB_API_TOKEN` (create one under sketchfab.com > Settings > API). The model is fetched as glTF, unpacked, and imported.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `uid` | str | required | A `uid` from `ue_search_sketchfab`. |
+| `destination` | str | `/Game/Sketchfab` | Content folder to import into. |
+
+Returns `{imported: [asset_path, ...]}`. The server and editor must share a filesystem (the file is downloaded locally, then imported). glTF import relies on the engine's Interchange importer, which is on by default in UE 5.
+
+---
+
+## AI generation
+
+Generate a 3D model from a text prompt with [Meshy](https://meshy.ai), then import it. Generation is asynchronous, so it is three tools: start, poll, import. Requires `MESHY_API_KEY` (create one under meshy.ai > Settings > API).
+
+### `ue_generate_model`
+
+Start a Meshy text-to-3D task.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `prompt` | str | required | What to generate, e.g. `"a mossy stone golem"`. |
+| `art_style` | str | `realistic` | `realistic` or `sculpture`. |
+
+Returns `{task_id, status, provider}`. Hold onto `task_id`.
+
+### `ue_generation_status`
+
+Poll a task until it is ready.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `task_id` | str | required | From `ue_generate_model`. |
+
+Returns `{task_id, status, progress, model_urls}`. `status` runs PENDING, then IN_PROGRESS, then SUCCEEDED (or FAILED). Import once it is SUCCEEDED.
+
+### `ue_import_generated`
+
+Download a finished model and import it. Fails if the task is not SUCCEEDED yet.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `task_id` | str | required | A SUCCEEDED task. |
+| `destination` | str | `/Game/Generated` | Content folder to import into. |
+| `file_format` | str | `glb` | `glb`, `fbx`, `obj`, or `usdz`. |
+
+Returns `{imported: [asset_path, ...]}`. Like Sketchfab import, the server and editor must share a filesystem. Generated models come in at a normalized size, so expect to rescale after import.
+
+---
+
 ## Materials
 
 ### `ue_create_material`

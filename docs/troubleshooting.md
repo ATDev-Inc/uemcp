@@ -10,8 +10,19 @@ Checklist, in order of likelihood:
 2. **Is the Python Editor Script Plugin enabled?** `Edit > Plugins`, search "Python". Restart the editor after enabling.
 3. **Is remote execution on?** `Edit > Project Settings`, search "Python", check **Enable Remote Execution**. This is per project, not per engine install. No restart needed for this one, but it does not hurt.
 4. **Firewall.** On Windows, the first time the editor binds the multicast socket, Windows Defender asks to allow `UnrealEditor.exe` network access. If that prompt was dismissed, allow it manually: Windows Security > Firewall > Allow an app. The MCP server process (python/uvx) may need the same.
-5. **VPN or virtual adapters.** Multicast discovery binds `0.0.0.0` by default, but some VPN clients swallow multicast. Try setting `UEMCP_MULTICAST_BIND` to your loopback or LAN interface IP on both sides (the editor has a matching setting in Project Settings > Python).
+5. **VPN or virtual adapters (the usual culprit on Windows).** Discovery binds `0.0.0.0` and sends the multicast ping out the OS's *default* interface. An active VPN (NordVPN, Tailscale) or virtual adapter (VirtualBox, Hyper-V, WSL) can become that default and swallow the ping, so it never reaches an editor that is bound to loopback. Find where the editor is actually listening:
+
+   ```powershell
+   Get-NetUDPEndpoint -LocalPort 6766          # Windows
+   ```
+   ```sh
+   lsof -nP -iUDP:6766                          # macOS / Linux
+   ```
+
+   If it shows `127.0.0.1` (recent UE versions default the Python multicast bind to loopback), match it on the server side with `UEMCP_MULTICAST_BIND=127.0.0.1`. If it shows a specific LAN IP, use that IP instead. The editor's matching control is Project Settings > Plugins > Python > **Multicast Bind Address**. On a single machine drowning in virtual adapters, the reliable answer is to pin *both* sides to `127.0.0.1`.
 6. **Changed defaults.** If the editor's multicast group or port were customized, mirror them with `UEMCP_MULTICAST_GROUP` / `UEMCP_MULTICAST_PORT`.
+
+Discovery is a single UDP round-trip, so an occasional miss (especially on a loopback-only or busy setup) is normal; just retry. Raising `UEMCP_DISCOVERY_TIMEOUT` (for example to `5`) makes it more reliable.
 
 Quick manual probe from a clone:
 

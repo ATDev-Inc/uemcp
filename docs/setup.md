@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Unreal Engine 5.0 through 5.6 (Epic Games Launcher or source builds both work)
+- Unreal Engine 5.0 through 5.7 (Epic Games Launcher or source builds both work)
 - Python 3.10+ on the machine running the MCP server
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
@@ -15,6 +15,8 @@ One-time, per project:
 3. `Edit > Project Settings`, search **Python** (under Plugins), check **Enable Remote Execution**.
 
 Defaults you do not need to touch (but can): multicast group `239.0.0.1:6766`, multicast bind address `0.0.0.0`. These appear in the same Project Settings section.
+
+> **On a machine with a VPN or virtual adapters (NordVPN, Tailscale, VirtualBox, Hyper-V, WSL; common on Windows):** discovery can silently fail because the multicast ping leaves on the wrong interface. Keep everything on loopback. Recent UE versions already default the **Multicast Bind Address** to `127.0.0.1`; match it on the server side by setting `UEMCP_MULTICAST_BIND=127.0.0.1`. See [troubleshooting](troubleshooting.md) for how to check which interface the editor actually bound.
 
 To verify: the editor gives no visible sign that remote execution is on; it just silently joins the multicast group. The easiest check is to ask Claude for `ue_status` once the client is configured. To probe directly from a clone of this repo:
 
@@ -82,11 +84,12 @@ or set `UEMCP_PROJECT=MyGame` in the MCP server's `env` block. The match is agai
 | `UEMCP_PROJECT` | (first found) | Prefer a specific project |
 | `UEMCP_MULTICAST_GROUP` | `239.0.0.1` | Must match the editor's Python settings |
 | `UEMCP_MULTICAST_PORT` | `6766` | Must match the editor's Python settings |
-| `UEMCP_MULTICAST_BIND` | `0.0.0.0` | Interface to bind for discovery |
+| `UEMCP_MULTICAST_BIND` | `0.0.0.0` | Interface to bind for discovery; set to `127.0.0.1` to match an editor bound to loopback (see [troubleshooting](troubleshooting.md)) |
 | `UEMCP_COMMAND_HOST` | `127.0.0.1` | Host the editor connects back to for commands |
 | `UEMCP_COMMAND_PORT` | `0` (auto) | Fixed command port if you need one for firewall rules |
 | `UEMCP_COMMAND_TIMEOUT` | `120` | Seconds to wait for a command result |
 | `UEMCP_DISCOVERY_TIMEOUT` | `2` | Seconds to wait for editors to answer a ping |
+| `UEMCP_DISCOVERY_ATTEMPTS` | `3` | How many discovery round-trips to try before giving up |
 
 ## Editor and server on different machines
 

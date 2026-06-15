@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 import time
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP, Image
 
-from . import __version__, snippets
+from . import __version__, assets, snippets
 from .bridge import UnrealBridge
 from .remote_exec import MODE_EXEC_FILE
 
@@ -22,7 +24,7 @@ For anything not covered by a dedicated tool, ue_python runs arbitrary editor
 Python with full access to the unreal module.
 """
 
-SCREENSHOT_TIMEOUT = 20.0
+SCREENSHOT_TIMEOUT = 30.0  # a cold HighResShot (first of a session) can be slow
 
 
 def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
@@ -34,7 +36,7 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
     @mcp.tool()
     def ue_status() -> dict:
         """Discover running Unreal Editor instances and report connection state."""
-        instances = bridge.client.discover()
+        instances = bridge.client.discover_with_retries()
         return {
             "connected": bridge.client.is_connected,
             "connected_to": (
@@ -181,6 +183,70 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
         """Save all dirty packages: the open level and any modified assets."""
         return bridge.run_json(snippets.build_save_dirty())
 
+    # ----------------------------------------------------- asset libraries ----
+
+    @mcp.tool()
+    def ue_asset_providers() -> dict:
+        """List external asset-library providers and whether their credentials are set."""
+        return {"providers": assets.provider_status()}
+
+    @mcp.tool()
+    def ue_search_sketchfab(query: str, limit: int = 12) -> dict:
+        """Search Sketchfab for downloadable 3D models (public, no token needed).
+
+        Returns each model's `uid`, which ue_import_sketchfab consumes. Mind the
+        `license` field before using a model.
+        """
+        hits = assets.SketchfabProvider().search(query, limit)
+        return {"count": len(hits), "results": [h.as_dict() for h in hits]}
+
+    @mcp.tool()
+    def ue_import_sketchfab(uid: str, destination: str = "/Game/Sketchfab") -> dict:
+        """Download a Sketchfab model by `uid` and import it into the project.
+
+        Needs SKETCHFAB_API_TOKEN. The model is fetched as glTF and imported with
+        the same path as ue_import_asset; the result lists the created asset paths.
+        """
+        provider = assets.SketchfabProvider()
+        work_dir = tempfile.mkdtemp(prefix="uemcp_sketchfab_")
+        try:
+            model_file = provider.download(uid, work_dir)
+            return bridge.run_json(snippets.build_import_asset(model_file, destination))
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    @mcp.tool()
+    def ue_generate_model(prompt: str, art_style: str = "realistic") -> dict:
+        """Start a Meshy text-to-3D generation (needs MESHY_API_KEY).
+
+        Asynchronous: returns a task_id. Poll ue_generation_status until it is
+        SUCCEEDED, then ue_import_generated to bring the model in. art_style is
+        `realistic` or `sculpture`. Models come in untextured and normalized in size.
+        """
+        task_id = assets.MeshyProvider().generate(prompt, art_style=art_style)
+        return {"task_id": task_id, "status": "PENDING", "provider": "meshy"}
+
+    @mcp.tool()
+    def ue_generation_status(task_id: str) -> dict:
+        """Check a Meshy generation task. Status is SUCCEEDED when it is ready to import."""
+        return assets.MeshyProvider().status(task_id)
+
+    @mcp.tool()
+    def ue_import_generated(
+        task_id: str, destination: str = "/Game/Generated", file_format: str = "glb"
+    ) -> dict:
+        """Download a finished Meshy model by task_id and import it into the project.
+
+        Fails if the task is not SUCCEEDED yet. file_format is glb, fbx, obj, or usdz.
+        """
+        provider = assets.MeshyProvider()
+        work_dir = tempfile.mkdtemp(prefix="uemcp_meshy_")
+        try:
+            model_file = provider.download(task_id, work_dir, file_format=file_format)
+            return bridge.run_json(snippets.build_import_asset(model_file, destination))
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
     # --------------------------------------------------------- materials ----
 
     @mcp.tool()
@@ -292,6 +358,40 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
     def ue_stop_play() -> dict:
         """Stop the active simulate/play-in-editor session."""
         return bridge.run_json(snippets.build_stop_play())
+
+    # ------------------------------------------------------------ prompts ----
+
+    @mcp.prompt()
+    def unreal_workflow_strategy() -> str:
+        """How to drive Unreal reliably: orient, place relative to the scene, verify."""
+        return """\
+When working in Unreal through UEMCP, follow this loop:
+
+1. Orient first. Call ue_status to confirm a live editor, then ue_project_info for
+   the engine version and the open level. Use ue_list_actors to see what is already
+   in the scene before adding anything.
+
+2. Do not assume the world origin is where the action is. Real levels are often built
+   thousands of units away from [0, 0, 0], so an actor spawned at the origin can be
+   invisible (off-screen, a kilometer from the camera). Anchor new actors to existing
+   geometry: get a reference actor's location with ue_get_actor (or ue_list_actors),
+   or read the camera with ue_get_camera, and place relative to that.
+
+3. Prefer existing content over primitives. ue_search_assets to find a /Game asset,
+   then ue_spawn_actor with its path. Use engine classes (/Script/Engine.PointLight)
+   or /Engine/BasicShapes/* only for true primitives and lights.
+
+4. Conventions: distances are centimeters, rotations are [roll, pitch, yaw] in degrees,
+   colors are [r, g, b] in 0..1. Properties are snake_case (ue_set_actor_property).
+
+5. Verify visually. After a change, ue_focus_actor on what you touched (or ue_set_camera),
+   then ue_screenshot and actually look at the result before reporting success.
+
+6. ue_python is the escape hatch for anything the dedicated tools do not cover.
+
+7. Nothing is written to disk until ue_save_all. Leave it to the user as a checkpoint
+   unless they ask you to save.
+"""
 
     return mcp
 

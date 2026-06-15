@@ -12,7 +12,10 @@ from uemcp.remote_exec import (
     TYPE_COMMAND,
     TYPE_COMMAND_RESULT,
     CommandChannel,
+    RemoteExecutionClient,
+    RemoteExecutionConfig,
     RemoteExecutionError,
+    UnrealInstance,
     make_message,
     parse_message,
 )
@@ -109,3 +112,40 @@ def test_closed_connection_raises():
     with pytest.raises(RemoteExecutionError):
         channel.run_command("print('hi')", timeout=2.0)
     channel.close()
+
+
+def test_discover_with_retries_stops_on_first_hit(monkeypatch):
+    client = RemoteExecutionClient(RemoteExecutionConfig(discovery_attempts=3))
+    found = UnrealInstance(node_id="n1", project_name="Demo")
+    calls = {"n": 0}
+
+    def fake_discover():
+        calls["n"] += 1
+        return [found] if calls["n"] >= 2 else []  # miss once, then hit
+
+    monkeypatch.setattr(client, "discover", fake_discover)
+    assert client.discover_with_retries() == [found]
+    assert calls["n"] == 2  # stopped as soon as an editor answered
+
+
+def test_discover_with_retries_exhausts_attempts(monkeypatch):
+    client = RemoteExecutionClient(RemoteExecutionConfig(discovery_attempts=3))
+    calls = {"n": 0}
+
+    def fake_discover():
+        calls["n"] += 1
+        return []
+
+    monkeypatch.setattr(client, "discover", fake_discover)
+    assert client.discover_with_retries() == []
+    assert calls["n"] == 3  # tried the full budget before giving up
+
+
+def test_discovery_attempts_from_env(monkeypatch):
+    monkeypatch.setenv("UEMCP_DISCOVERY_ATTEMPTS", "5")
+    assert RemoteExecutionConfig.from_env().discovery_attempts == 5
+
+
+def test_discovery_attempts_bad_env_keeps_default(monkeypatch):
+    monkeypatch.setenv("UEMCP_DISCOVERY_ATTEMPTS", "notanumber")
+    assert RemoteExecutionConfig.from_env().discovery_attempts == 3
