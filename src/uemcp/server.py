@@ -142,6 +142,41 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
         """Get an actor's transform, class, and component list by its outliner label."""
         return bridge.run_json(snippets.build_get_actor(label))
 
+    @mcp.tool()
+    def ue_batch_edit(
+        operations: list[dict],
+        filter_class: str | None = None,
+        name_contains: str | None = None,
+        labels: list[str] | None = None,
+        limit: int = 500,
+        continue_on_error: bool = True,
+        dry_run: bool = False,
+    ) -> dict:
+        """Apply operations to many actors in one editor round trip.
+
+        Select actors by `labels` (exact) and/or `filter_class` + `name_contains`
+        (same as ue_list_actors); at least one selector is required. `operations`
+        is an ordered list of dicts, each with an `op`:
+        {"op": "set_property", "property": ..., "value": ...},
+        {"op": "set_transform", "location"/"rotation"/"scale": [...],
+        "mode": "absolute"|"relative"},
+        {"op": "set_material", "material_path": ..., "slot": 0}, or {"op": "destroy"}.
+        Relative transforms add to location/rotation and multiply scale; destroy is
+        applied last. dry_run reports which actors would be touched without changing
+        anything. Per-actor errors are collected (continue_on_error) or abort.
+        """
+        return bridge.run_json(
+            snippets.build_batch_edit(
+                operations,
+                filter_class,
+                name_contains,
+                labels,
+                limit,
+                continue_on_error,
+                dry_run,
+            )
+        )
+
     # ------------------------------------------------------------ assets ----
 
     @mcp.tool()

@@ -201,6 +201,159 @@ _actor = _target""",
     )
 
 
+def build_batch_edit(
+    operations,
+    filter_class: str | None,
+    name_contains: str | None,
+    labels,
+    limit: int,
+    continue_on_error: bool,
+    dry_run: bool,
+) -> str:
+    """Apply an ordered list of operations to every matched actor in one call.
+
+    Selection is the union of `labels` (exact) and `filter_class`/`name_contains`
+    (same semantics as build_list_actors). Each operation is a dict with an `op`
+    key: set_property, set_transform (absolute or relative), set_material, or
+    destroy (always applied last). Errors are collected per actor.
+    """
+    return f"""\
+_ops = {list(operations)!r}
+_filter_class = {filter_class!r}
+_contains = {name_contains!r}
+_labels = {list(labels) if labels else None!r}
+_limit = {int(limit)!r}
+_continue = {bool(continue_on_error)!r}
+_dry = {bool(dry_run)!r}
+if not _labels and not _filter_class and not _contains:
+    raise RuntimeError("Refusing to edit all actors: pass labels, filter_class, or name_contains.")
+_label_set = set(_labels) if _labels else None
+_subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+_matched = []
+for _a in _subsys.get_all_level_actors():
+    _cls = _a.get_class().get_name()
+    _label = _a.get_actor_label()
+    if _label_set is not None and _label not in _label_set:
+        continue
+    if _filter_class and _filter_class.lower() not in _cls.lower():
+        continue
+    if _contains and _contains.lower() not in _label.lower():
+        continue
+    _matched.append(_a)
+if len(_matched) > _limit:
+    raise RuntimeError(
+        "Matched %d actors, over the limit of %d. Narrow the filter or raise limit."
+        % (len(_matched), _limit)
+    )
+if _dry:
+    return {{
+        "matched": len(_matched),
+        "applied": 0,
+        "failed": 0,
+        "dry_run": True,
+        "results": [{{"label": _a.get_actor_label(), "ok": True}} for _a in _matched],
+    }}
+
+
+def _apply_op(_actor, _op):
+    _kind = _op.get("op")
+    if _kind == "set_property":
+        _prop = _op["property"]
+        _val = _op["value"]
+        try:
+            _actor.set_editor_property(_prop, _val)
+        except Exception:
+            if isinstance(_val, (list, tuple)) and len(_val) == 3:
+                try:
+                    _actor.set_editor_property(_prop, unreal.Vector(*[float(_x) for _x in _val]))
+                except Exception:
+                    _actor.set_editor_property(
+                        _prop, unreal.LinearColor(*[float(_x) for _x in _val])
+                    )
+            elif isinstance(_val, (list, tuple)) and len(_val) == 4:
+                _actor.set_editor_property(_prop, unreal.LinearColor(*[float(_x) for _x in _val]))
+            else:
+                raise
+    elif _kind == "set_transform":
+        _relative = _op.get("mode") == "relative"
+        _loc = _op.get("location")
+        _rot = _op.get("rotation")
+        _scl = _op.get("scale")
+        if _loc is not None:
+            _v = unreal.Vector(float(_loc[0]), float(_loc[1]), float(_loc[2]))
+            if _relative:
+                _c = _actor.get_actor_location()
+                _v = unreal.Vector(_c.x + _v.x, _c.y + _v.y, _c.z + _v.z)
+            _actor.set_actor_location(_v, False, False)
+        if _rot is not None:
+            _rr = unreal.Rotator(float(_rot[0]), float(_rot[1]), float(_rot[2]))
+            if _relative:
+                _c = _actor.get_actor_rotation()
+                _rr = unreal.Rotator(_c.roll + _rr.roll, _c.pitch + _rr.pitch, _c.yaw + _rr.yaw)
+            _actor.set_actor_rotation(_rr, False)
+        if _scl is not None:
+            _s = unreal.Vector(float(_scl[0]), float(_scl[1]), float(_scl[2]))
+            if _relative:
+                _c = _actor.get_actor_scale3d()
+                _s = unreal.Vector(_c.x * _s.x, _c.y * _s.y, _c.z * _s.z)
+            _actor.set_actor_scale3d(_s)
+    elif _kind == "set_material":
+        _mat = unreal.load_asset(_op["material_path"])
+        if _mat is None:
+            raise RuntimeError("No material at %s" % _op["material_path"])
+        _comps = _actor.get_components_by_class(unreal.MeshComponent)
+        if not _comps:
+            raise RuntimeError("Actor has no mesh components")
+        _comps[0].set_material(int(_op.get("slot", 0)), _mat)
+    else:
+        raise RuntimeError("Unknown op: %r" % _kind)
+
+
+_results = []
+_applied = 0
+_failed = 0
+for _a in _matched:
+    _label = _a.get_actor_label()
+    _done = []
+    _destroy = False
+    try:
+        for _op in _ops:
+            if _op.get("op") == "destroy":
+                _destroy = True
+                continue
+            _apply_op(_a, _op)
+            _done.append(_op.get("op"))
+        if _destroy:
+            _subsys.destroy_actor(_a)
+            _done.append("destroy")
+        _results.append({{"label": _label, "ops": _done, "ok": True}})
+        _applied += 1
+    except Exception as _err:
+        _failed += 1
+        _results.append({{
+            "label": _label,
+            "ops": _done,
+            "ok": False,
+            "error": "%s: %s" % (type(_err).__name__, _err),
+        }})
+        if not _continue:
+            return {{
+                "matched": len(_matched),
+                "applied": _applied,
+                "failed": _failed,
+                "dry_run": False,
+                "aborted": True,
+                "results": _results,
+            }}
+return {{
+    "matched": len(_matched),
+    "applied": _applied,
+    "failed": _failed,
+    "dry_run": False,
+    "results": _results,
+}}"""
+
+
 # ---------------------------------------------------------------- assets ----
 
 

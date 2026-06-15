@@ -77,7 +77,7 @@ More detail, including pinning to one project when several editors are open: [do
 | Group | Tools |
 |---|---|
 | Editor | `ue_status`, `ue_python`, `ue_console_command`, `ue_project_info` |
-| Actors | `ue_list_actors`, `ue_spawn_actor`, `ue_destroy_actor`, `ue_set_actor_transform`, `ue_set_actor_property`, `ue_get_actor` |
+| Actors | `ue_list_actors`, `ue_spawn_actor`, `ue_destroy_actor`, `ue_set_actor_transform`, `ue_set_actor_property`, `ue_get_actor`, `ue_batch_edit` |
 | Assets | `ue_search_assets`, `ue_asset_info`, `ue_import_asset`, `ue_create_folder`, `ue_duplicate_asset`, `ue_delete_asset`, `ue_save_all` |
 | Asset libraries | `ue_asset_providers`, `ue_search_sketchfab`, `ue_import_sketchfab` |
 | AI generation | `ue_generate_model`, `ue_generation_status`, `ue_import_generated` |
