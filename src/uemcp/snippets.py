@@ -11,6 +11,8 @@ Values are interpolated with repr(), so anything that came in as JSON
 
 from __future__ import annotations
 
+import textwrap
+
 _FIND_ACTOR = """\
 _subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 _target = None
@@ -589,3 +591,199 @@ def build_stop_play() -> str:
 _les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 _les.editor_request_end_play_map()
 return {"playing": False}"""
+
+
+# ------------------------------------------------------ movie render queue ----
+
+
+def build_render_targets() -> str:
+    """Report the values headless rendering needs: editor exe, project, map."""
+    return """\
+import sys as _sys
+_world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+_map_object = _world.get_path_name() if _world else None
+return {
+    "editor_exe": _sys.executable,
+    "project_file": unreal.Paths.convert_relative_path_to_full(
+        unreal.Paths.get_project_file_path()
+    ),
+    "project_dir": unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()),
+    "map_object": _map_object,
+    "map_package": _map_object.split(".")[0] if _map_object else None,
+}"""
+
+
+def _output_settings_body(res) -> str:
+    """Code that adds the render pass + output settings to a config named `_config`.
+
+    Assumes the runtime names `_config`, `_output_classes`, `_out_dir`, `_start`,
+    `_end`, and `_fps` are already defined. Shared by the in-editor render and the
+    headless config-asset authoring path so they build identical configs.
+    """
+    res = [int(v) for v in (res or [1920, 1080])]
+    return f"""\
+_config.find_or_add_setting_by_class(unreal.MoviePipelineDeferredPassBase)
+for _cls_name in _output_classes:
+    _out_cls = getattr(unreal, _cls_name, None)
+    if _out_cls is None:
+        raise RuntimeError("Output format unsupported in this engine: %s" % _cls_name)
+    _config.find_or_add_setting_by_class(_out_cls)
+_o = _config.find_or_add_setting_by_class(unreal.MoviePipelineOutputSetting)
+_o.output_directory = unreal.DirectoryPath(_out_dir)
+_o.output_resolution = unreal.IntPoint({res[0]!r}, {res[1]!r})
+if _start is not None and _end is not None:
+    _o.use_custom_playback_range = True
+    _o.custom_start_frame = int(_start)
+    _o.custom_end_frame = int(_end)
+if _fps:
+    _o.use_custom_frame_rate = True
+    _o.output_frame_rate = unreal.FrameRate(int(_fps), 1)"""
+
+
+def build_render_sequence(
+    sequence_path: str,
+    output_dir: str,
+    output_classes,
+    marker_path: str,
+    resolution,
+    start_frame: int | None,
+    end_frame: int | None,
+    frame_rate: int | None,
+    map_object: str | None,
+    config_path: str | None,
+) -> str:
+    """Queue and start an in-editor MRQ render; a marker file signals completion.
+
+    `output_classes` is a list of unreal output-setting class names (for example
+    `["MoviePipelineImageSequenceOutput_PNG"]`); when `config_path` is given, that
+    saved Movie Pipeline config preset is used instead of a built one.
+    """
+    settings = textwrap.indent(_output_settings_body(resolution), "    ")
+    return f"""\
+if not hasattr(unreal, "MoviePipelineQueueSubsystem"):
+    raise RuntimeError(
+        "Movie Render Queue is unavailable. Enable the 'Movie Render Queue' "
+        "plugin in Project Settings > Plugins and restart the editor."
+    )
+import os as _os
+import json as _json
+import time as _time
+import __main__ as _main
+_seq = {sequence_path!r}
+_out_dir = {output_dir!r}
+_marker = {marker_path!r}
+_map = {map_object!r}
+_config_path = {config_path!r}
+_output_classes = {list(output_classes)!r}
+_start = {start_frame!r}
+_end = {end_frame!r}
+_fps = {frame_rate!r}
+_t0 = _time.time()
+
+_subsys = unreal.get_editor_subsystem(unreal.MoviePipelineQueueSubsystem)
+_queue = _subsys.get_queue()
+_queue.delete_all_jobs()
+_job = _queue.allocate_new_job(unreal.MoviePipelineExecutorJob)
+_job.job_name = _seq.split("/")[-1]
+if not _map:
+    _world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+    _map = _world.get_path_name() if _world else None
+if not _map:
+    raise RuntimeError("No map to render; open a level or pass map_path.")
+_job.map = unreal.SoftObjectPath(_map)
+_job.sequence = unreal.SoftObjectPath(_seq)
+
+if _config_path:
+    _preset = unreal.load_asset(_config_path)
+    if _preset is None:
+        raise RuntimeError("No Movie Pipeline config at %s" % _config_path)
+    try:
+        _job.set_configuration(_preset)
+    except Exception:
+        _job.set_preset_origin(_preset)
+    _config = _job.get_configuration()
+    _o = _config.find_setting_by_class(unreal.MoviePipelineOutputSetting)
+    if _o is not None:
+        _dir = str(_o.output_directory.path)
+        if _dir and "{{" not in _dir:
+            _out_dir = _dir
+else:
+    _config = _job.get_configuration()
+{settings}
+
+_os.makedirs(_out_dir, exist_ok=True)
+_os.makedirs(_os.path.dirname(_marker), exist_ok=True)
+if _os.path.exists(_marker):
+    _os.remove(_marker)
+
+
+def _uemcp_on_render_finished(_executor, _success):
+    try:
+        _files = []
+        for _root, _dirs, _names in _os.walk(_out_dir):
+            for _n in _names:
+                _p = _os.path.join(_root, _n)
+                if _os.path.getmtime(_p) >= _t0 - 2.0:
+                    _files.append(_p)
+        _payload = {{"success": bool(_success), "files": sorted(_files)}}
+    except Exception as _err:
+        _payload = {{"success": False, "error": str(_err)}}
+    with open(_marker, "w") as _fh:
+        _json.dump(_payload, _fh)
+
+
+_executor = unreal.MoviePipelinePIEExecutor()
+_executor.on_executor_finished_delegate.add_callable(_uemcp_on_render_finished)
+_main._uemcp_mrq_executor = _executor  # keep alive past this call
+_subsys.render_queue_with_executor_instance(_executor)
+return {{"output_dir": _out_dir, "marker": _marker, "sequence": _seq, "map": _map}}"""
+
+
+def build_save_render_config(
+    asset_path: str,
+    output_dir: str,
+    output_classes,
+    resolution,
+    start_frame: int | None,
+    end_frame: int | None,
+    frame_rate: int | None,
+) -> str:
+    """Author and save a Movie Pipeline config preset asset for a headless render.
+
+    Returns the asset's object path (for `-MoviePipelineConfig`) and its output
+    directory. The settings match `build_render_sequence` so both paths render
+    identically.
+    """
+    return f"""\
+if not hasattr(unreal, "MoviePipelineQueueSubsystem"):
+    raise RuntimeError(
+        "Movie Render Queue is unavailable. Enable the 'Movie Render Queue' "
+        "plugin in Project Settings > Plugins and restart the editor."
+    )
+import os as _os
+_asset_path = {asset_path!r}
+_out_dir = {output_dir!r}
+_output_classes = {list(output_classes)!r}
+_start = {start_frame!r}
+_end = {end_frame!r}
+_fps = {frame_rate!r}
+_os.makedirs(_out_dir, exist_ok=True)
+_cfg_cls = getattr(unreal, "MoviePipelinePrimaryConfig", None) or getattr(
+    unreal, "MoviePipelineMasterConfig", None
+)
+if _cfg_cls is None:
+    raise RuntimeError("This engine has no Movie Pipeline config class.")
+_folder = _asset_path.rsplit("/", 1)[0]
+_name = _asset_path.rsplit("/", 1)[-1]
+if unreal.EditorAssetLibrary.does_asset_exist(_asset_path):
+    unreal.EditorAssetLibrary.delete_asset(_asset_path)
+_config = unreal.AssetToolsHelpers.get_asset_tools().create_asset(_name, _folder, _cfg_cls, None)
+if _config is None:
+    raise RuntimeError("Could not create Movie Pipeline config asset at %s" % _asset_path)
+{_output_settings_body(resolution)}
+unreal.EditorAssetLibrary.save_loaded_asset(_config)
+return {{
+    "config_object": _config.get_path_name(),
+    "output_dir": _out_dir,
+    "config_path": _asset_path,
+}}"""
