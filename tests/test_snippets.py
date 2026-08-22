@@ -132,6 +132,7 @@ CASES = [
     ("screenshot", snippets.build_screenshot, (1920, 1080)),
     ("start_play", snippets.build_start_play, ()),
     ("stop_play", snippets.build_stop_play, ()),
+    ("release_mouse", snippets.build_release_mouse, ()),
     ("render_targets", snippets.build_render_targets, ()),
     (
         "render_sequence",

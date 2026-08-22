@@ -11,12 +11,17 @@ All notable changes to UEMCP are documented here. The format follows [Keep a Cha
 - `unreal_workflow_strategy` MCP prompt that guides the orient, place relative to the scene, then screenshot to verify loop.
 - Movie Render Queue: `ue_render_sequence` renders a Level Sequence to an image sequence (`png`/`jpg`/`bmp`/`exr`), `prores` video, or `mp4` (renders frames then runs the project's command-line ffmpeg encoder). In-editor mode builds the Movie Pipeline config from the parameters and blocks until the render finishes; headless mode renders in a separate offscreen `UnrealEditor-Cmd` process, auto-authoring a config preset from the parameters when no `config_path` is given (`UEMCP_EDITOR_CMD` sets the executable). Needs the Movie Render Queue plugin enabled.
 - `ue_batch_edit` applies an ordered list of operations (set_property, set_transform, set_material, destroy) to many actors selected by label or filter in a single editor round trip. Supports relative transforms (add to location/rotation, multiply scale), a dry-run mode, a match limit, and per-actor error collection.
+- `ue_release_mouse` frees the cursor from a play session without stopping it: play mode can capture and lock the mouse to the viewport, and the built-in escapes (Esc, Shift+F1) are keyboard-only, which strands mouse-only users. Shows the cursor and switches the player controller to game-and-UI input with the viewport lock disabled. Handles the UE 5.7 rename of `WidgetBlueprintLibrary` to `WidgetLibrary`.
 
 ### Changed
 
 - Discovery now retries (`UEMCP_DISCOVERY_ATTEMPTS`, default 3), so a single dropped multicast round-trip no longer fails a connect.
 - Verified support through Unreal Engine 5.7.
 - Screenshot wait raised to 30s to tolerate a cold first capture.
+
+### Fixed
+
+- `ue_stop_play` failed on UE 5.7 with `AttributeError: editor_request_end_play_map`: the entry point was renamed across engine releases. The snippet now tries `editor_request_end_play` (5.7), then `editor_request_end_play_map`, then falls back to `EditorLevelLibrary.editor_end_play`. This tool doubles as the keyboard-free escape from a play session that has captured the mouse, so its failure was an accessibility regression, not just an API break.
 
 ### Security
 

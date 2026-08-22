@@ -750,10 +750,37 @@ return {"playing": True, "mode": "simulate"}"""
 
 
 def build_stop_play() -> str:
+    # The end-play entry point was renamed across engine releases: 5.7 exposes
+    # editor_request_end_play, older builds editor_request_end_play_map, and
+    # the deprecated EditorLevelLibrary.editor_end_play is the last resort.
     return """\
 _les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
-_les.editor_request_end_play_map()
+for _name in ("editor_request_end_play", "editor_request_end_play_map"):
+    _fn = getattr(_les, _name, None)
+    if _fn is not None:
+        _fn()
+        break
+else:
+    unreal.EditorLevelLibrary.editor_end_play()
 return {"playing": False}"""
+
+
+def build_release_mouse() -> str:
+    # WidgetBlueprintLibrary was renamed to WidgetLibrary in UE 5.7.
+    return """\
+_ues = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
+_world = _ues.get_game_world()
+if _world is None:
+    raise RuntimeError("No play session is running (nothing has captured the mouse)")
+_pc = unreal.GameplayStatics.get_player_controller(_world, 0)
+if _pc is None:
+    raise RuntimeError("Play session has no player controller to release")
+_pc.set_editor_property("show_mouse_cursor", True)
+_widgets = getattr(unreal, "WidgetLibrary", None) or getattr(unreal, "WidgetBlueprintLibrary", None)
+if _widgets is None:
+    raise RuntimeError("UMG widget library unavailable; cannot change input mode")
+_widgets.set_input_mode_game_and_ui_ex(_pc, None, unreal.MouseLockMode.DO_NOT_LOCK, False)
+return {"released": True, "player_controller": _pc.get_name()}"""
 
 
 # ------------------------------------------------------ movie render queue ----

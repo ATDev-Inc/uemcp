@@ -360,7 +360,11 @@ Returns the image directly into the conversation. Uses Unreal's HighResShot, so 
 
 ### `ue_play` / `ue_stop_play`
 
-Start and stop simulating the level in the viewport. `ue_play` uses Simulate mode (physics, Niagara, and most gameplay run; no player pawn is possessed). True PIE with input injection is on the roadmap.
+Start and stop simulating the level in the viewport. `ue_play` uses Simulate mode (physics, Niagara, and most gameplay run; no player pawn is possessed). True PIE with input injection is on the roadmap. `ue_stop_play` doubles as the keyboard-free escape from a play session that has captured the mouse: remote execution rides the editor tick, which keeps running during play.
+
+### `ue_release_mouse`
+
+Free the mouse cursor from a play session without stopping it. Play mode can capture the mouse and lock it to the game viewport; the built-in escapes (Shift+F1, Esc) are keyboard-only, which strands mouse-only users. This shows the cursor and switches the player controller to game-and-UI input with the viewport lock disabled, so the pointer can leave the viewport while the session keeps running. Raises a clear error when no play session is active. Works alongside the project-level fix (Project Settings > Engine > Input: `DefaultViewportMouseCaptureMode=CaptureDuringMouseDown`, `DefaultViewportMouseLockMode=DoNotLock`, `bCaptureMouseOnLaunch=False`), which prevents the trap in the first place.
 
 ---
 

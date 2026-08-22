@@ -395,6 +395,19 @@ def create_server(bridge: UnrealBridge | None = None) -> FastMCP:
         """Stop the active simulate/play-in-editor session."""
         return bridge.run_json(snippets.build_stop_play())
 
+    @mcp.tool()
+    def ue_release_mouse() -> dict:
+        """Free the mouse cursor from a play session without stopping it.
+
+        Play mode can capture the mouse and lock it to the game viewport,
+        which a mouse-only user cannot escape without a keyboard (Shift+F1
+        or Esc). This shows the cursor and switches the player controller
+        to game-and-UI input with the viewport lock disabled, so the
+        pointer can leave the viewport while the session keeps running.
+        Use ue_stop_play to end the session entirely.
+        """
+        return bridge.run_json(snippets.build_release_mouse())
+
     # -------------------------------------------------- movie render queue ----
 
     @mcp.tool()
