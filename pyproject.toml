@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Topic :: Multimedia :: Graphics :: 3D Modeling",
 ]
-dependencies = ["mcp>=1.2.0,<2"]
+dependencies = ["mcp>=1.2.0,<3"]
 
 [project.urls]
 Homepage = "https://github.com/ATDev-Inc/uemcp"
