@@ -543,13 +543,16 @@ def build_create_material_instance(
 _parent = unreal.load_asset({parent_path!r})
 if _parent is None:
     raise RuntimeError("No parent material at %s" % {parent_path!r})
-_factory = unreal.MaterialInstanceConstantFactoryNew()
-_factory.set_editor_property("initial_parent", _parent)
 _at = unreal.AssetToolsHelpers.get_asset_tools()
-_mi = _at.create_asset({name!r}, {folder!r}, unreal.MaterialInstanceConstant, _factory)
+_mi = _at.create_asset(
+    {name!r}, {folder!r}, unreal.MaterialInstanceConstant,
+    unreal.MaterialInstanceConstantFactoryNew(),
+)
 if _mi is None:
     raise RuntimeError("Could not create material instance (does it already exist?)")
 _mel = unreal.MaterialEditingLibrary
+# Parent after creation: UE 5.8's factory no longer exposes 'initial_parent'
+_mel.set_material_instance_parent(_mi, _parent)
 for _k, _v in ({scalar_params!r} or {{}}).items():
     _mel.set_material_instance_scalar_parameter_value(_mi, _k, float(_v))
 for _k, _v in ({vector_params!r} or {{}}).items():
