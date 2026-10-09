@@ -21,6 +21,7 @@ All notable changes to UEMCP are documented here. The format follows [Keep a Cha
 
 ### Fixed
 
+- `ue_create_material_instance` failed on UE 5.8 with `Failed to find property 'initial_parent'`: `MaterialInstanceConstantFactoryNew` no longer exposes that property. The snippet now creates the instance with a bare factory and sets the parent with `MaterialEditingLibrary.set_material_instance_parent`, which exists across UE 5.x.
 - `ue_stop_play` failed on UE 5.7 with `AttributeError: editor_request_end_play_map`: the entry point was renamed across engine releases. The snippet now tries `editor_request_end_play` (5.7), then `editor_request_end_play_map`, then falls back to `EditorLevelLibrary.editor_end_play`. This tool doubles as the keyboard-free escape from a play session that has captured the mouse, so its failure was an accessibility regression, not just an API break.
 
 ### Security
